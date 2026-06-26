@@ -50,7 +50,45 @@ define(['N/ui/serverWidget', 'N/search', 'N/record', 'N/runtime', 'N/redirect', 
         return sessionRec.save();
     }
 
-    function handleSendMessage(request) {
+    // function handleSendMessage(request) {
+    //     const sessionId = request.parameters.sessionid;
+    //     const userMessage = request.parameters.message?.trim();
+
+    //     if (!sessionId || !userMessage) return sessionId;
+
+    //     // Save User Message
+    //     saveChatMessage(sessionId, 'user', userMessage);
+
+    //     try {
+    //         // Call RESTlet
+    //         const restletUrl = url.resolveScript({
+    //             scriptId: 'customscript_ai_assistance_restlet',     // ← CHANGE THIS
+    //             deploymentId: 'customdeploy_ai_assistance_restlet', // ← CHANGE THIS
+    //             returnExternalUrl: false
+    //         });
+
+    //         const response = https.post({
+    //             url: restletUrl,
+    //             body: JSON.stringify({
+    //                 sessionId: sessionId,
+    //                 message: userMessage
+    //             }),
+    //             headers: { 'Content-Type': 'application/json' }
+    //         });
+
+    //         const aiResponse = JSON.parse(response.body).response || "Sorry, I couldn't process that.";
+
+    //         // Save AI Response
+    //         saveChatMessage(sessionId, 'assistant', aiResponse);
+
+    //     } catch (e) {
+    //         log.error('RESTlet Call Failed', e);
+    //         saveChatMessage(sessionId, 'assistant', "Sorry, AI is currently unavailable.");
+    //     }
+
+    //     return sessionId;
+    // }
+        function handleSendMessage(request) {
         const sessionId = request.parameters.sessionid;
         const userMessage = request.parameters.message?.trim();
 
@@ -60,30 +98,32 @@ define(['N/ui/serverWidget', 'N/search', 'N/record', 'N/runtime', 'N/redirect', 
         saveChatMessage(sessionId, 'user', userMessage);
 
         try {
-            // Call RESTlet
-            const restletUrl = url.resolveScript({
-                scriptId: 'YOUR_RESTLET_SCRIPT_ID',     // ← CHANGE THIS
-                deploymentId: 'YOUR_RESTLET_DEPLOYMENT_ID', // ← CHANGE THIS
-                returnExternalUrl: false
-            });
+            // Direct call to your Python app
+            const pythonUrl = 'https://netsuite-ai-assistance.onrender.com/chat';
 
             const response = https.post({
-                url: restletUrl,
+                url: pythonUrl,
                 body: JSON.stringify({
                     sessionId: sessionId,
                     message: userMessage
                 }),
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 
+                    'Content-Type': 'application/json' 
+                }
             });
 
-            const aiResponse = JSON.parse(response.body).response || "Sorry, I couldn't process that.";
+            const aiResult = JSON.parse(response.body);
+
+            const aiResponse = aiResult.success && aiResult.response 
+                ? aiResult.response 
+                : "Sorry, I couldn't process that right now.";
 
             // Save AI Response
             saveChatMessage(sessionId, 'assistant', aiResponse);
 
         } catch (e) {
-            log.error('RESTlet Call Failed', e);
-            saveChatMessage(sessionId, 'assistant', "Sorry, AI is currently unavailable.");
+            log.error('Python AI Call Failed', e);
+            saveChatMessage(sessionId, 'assistant', "Sorry, AI is currently unavailable. Please try again.");
         }
 
         return sessionId;
