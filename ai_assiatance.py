@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import os
 from groq import Groq
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -10,50 +11,31 @@ app = Flask(__name__)
 groq_key = os.getenv("GROQ_API_KEY")
 
 if not groq_key:
-    raise ValueError("GROQ_API_KEY not found in .env file! Please check your .env file.")
+    raise ValueError("GROQ_API_KEY not found in .env file!")
 
 client = Groq(api_key=groq_key)
 
 chat_history = {}
 
-@app.route('/chat', methods=['POST'])
-def chat():
-    try:
-        data = request.get_json()
-        session_id = data.get('sessionId')
-        user_message = data.get('message')
+# System Prompt with Action Instructions
+SYSTEM_PROMPT = """You are an expert NetSuite assistant. You help users perform operations in NetSuite.
 
-        if not session_id or not user_message:
-            return jsonify({"error": "Missing sessionId or message"}), 400
+**Important Rules:**
+- If the user asks you to **create, update, or retrieve** any record (Customer, Vendor, Sales Order, Invoice, etc.), you MUST respond with a valid JSON object.
+- If no action is needed (just explanation or general question), respond with normal text.
 
-        if session_id not in chat_history:
-            chat_history[session_id] = [
-                {"role": "system", "content": "You are a helpful assistant specialized in NetSuite ERP, accounting, and business operations."}
-            ]
+**Response Format:**
 
-        chat_history[session_id].append({"role": "user", "content": user_message})
-
-        # ✅ Correct Current Model
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",   # ← This is the correct one
-            messages=chat_history[session_id],
-            temperature=0.7,
-            max_tokens=800
-        )
-
-        ai_response = response.choices[0].message.content.strip()
-
-        chat_history[session_id].append({"role": "assistant", "content": ai_response})
-
-        return jsonify({
-            "success": True,
-            "response": ai_response
-        })
-
-    except Exception as e:
-        print("Error:", str(e))
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+If action is needed:
+```json
+{
+  "response": "Friendly message to the user",
+  "action": {
+    "type": "create_customer",
+    "data": {
+      "companyname": "Test001-RS",
+      "email": "test001@gmail.com",
+      "phone": "1234567890"
+    }
+  }
+}
