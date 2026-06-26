@@ -16,33 +16,33 @@ client = Groq(api_key=groq_key)
 
 chat_history = {}
 
-# Strong System Prompt
+# ✅ Much Stronger System Prompt
 SYSTEM_PROMPT = """You are an expert NetSuite assistant.
 
-**CRITICAL RULE:**
-If the user asks to CREATE, UPDATE, or perform any action on a record (customer, sales order, etc.), you MUST reply with a valid JSON object ONLY. No extra text outside the JSON.
+**STRICT RULE - YOU MUST FOLLOW THIS:**
+- If the user wants to **create a customer**, reply **ONLY** with a valid JSON object. No explanations, no extra text, no markdown.
+- Never give step-by-step instructions when the user asks to create something.
 
-**Response Format:**
+**Exact JSON Format to return:**
 
 {
-  "response": "Short confirmation message to the user",
+  "response": "Customer creation requested.",
   "action": {
     "type": "create_customer",
     "data": {
-      "companyname": "Test001-RS",
-      "email": "test001@gmail.com"
+      "companyname": "Exact name from user",
+      "email": "Exact email from user"
     }
   }
 }
 
-If no action is needed, still return JSON:
+If no action is needed, use:
 {
-  "response": "Your normal helpful answer",
+  "response": "Your normal answer here.",
   "action": null
 }
 
-Supported action: create_customer only for now.
-Be concise. Do not give steps or code examples when action is possible."""
+Always output valid JSON only. Do not add any text before or after the JSON."""
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -64,24 +64,25 @@ def chat():
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=chat_history[session_id],
-            temperature=0.2,                    # Lower = more consistent
-            max_tokens=800,
-            response_format={"type": "json_object"}   # ← This forces JSON
+            temperature=0.1,          # Even lower for consistency
+            max_tokens=600,
+            response_format={"type": "json_object"}
         )
 
         ai_content = response.choices[0].message.content.strip()
-        print("Raw Groq Response:", ai_content)   # ← For debugging
+        print("=== RAW GROQ RESPONSE ===")
+        print(ai_content)
+        print("=========================")
 
         try:
             ai_result = json.loads(ai_content)
-        except json.JSONDecodeError as e:
-            print("JSON Parse Error:", str(e))
+        except json.JSONDecodeError:
+            print("JSON Parse Failed - Fallback")
             ai_result = {
                 "response": ai_content,
                 "action": None
             }
 
-        # Save only the response part to history
         chat_history[session_id].append({
             "role": "assistant", 
             "content": ai_result.get("response", ai_content)
