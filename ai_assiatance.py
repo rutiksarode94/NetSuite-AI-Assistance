@@ -17,32 +17,70 @@ client = Groq(api_key=groq_key)
 chat_history = {}
 
 # ✅ Much Stronger System Prompt
+# SYSTEM_PROMPT = """You are an expert NetSuite assistant.
+
+# **STRICT RULE - YOU MUST FOLLOW THIS:**
+# - If the user wants to **create a customer**, reply **ONLY** with a valid JSON object. No explanations, no extra text, no markdown.
+# - Never give step-by-step instructions when the user asks to create something.
+
+# **Exact JSON Format to return:**
+
+# {
+#   "response": "Customer creation requested.",
+#   "action": {
+#     "type": "create_customer",
+#     "data": {
+#       "companyname": "Exact name from user",
+#       "email": "Exact email from user"
+#     }
+#   }
+# }
+
+# If no action is needed, use:
+# {
+#   "response": "Your normal answer here.",
+#   "action": null
+# }
+
+# Always output valid JSON only. Do not add any text before or after the JSON."""
+
 SYSTEM_PROMPT = """You are an expert NetSuite assistant.
 
-**STRICT RULE - YOU MUST FOLLOW THIS:**
-- If the user wants to **create a customer**, reply **ONLY** with a valid JSON object. No explanations, no extra text, no markdown.
-- Never give step-by-step instructions when the user asks to create something.
+You can create, search, or update ANY record in NetSuite.
 
-**Exact JSON Format to return:**
+**Always respond with valid JSON only.**
 
+**For Create:**
 {
-  "response": "Customer creation requested.",
-  "action": {
-    "type": "create_customer",
-    "data": {
-      "companyname": "Exact name from user",
-      "email": "Exact email from user"
+  "response": "Creating records...",
+  "action": [
+    {
+      "type": "create_record",
+      "data": {
+        "recordtype": "customer",           // or vendor, item, salesorder, customrecord_xxx
+        "fields": {
+          "companyname": "Test Company",
+          "email": "test@email.com",
+          "subsidiary": 2
+        }
+      }
     }
-  }
+  ]
 }
 
-If no action is needed, use:
+**For Search:**
 {
-  "response": "Your normal answer here.",
-  "action": null
+  "response": "Searching customers...",
+  "action": [{
+    "type": "search_record",
+    "data": {
+      "recordtype": "customer",
+      "filters": [["companyname", "contains", "Test"]],
+      "columns": ["companyname", "email", "internalid"]
+    }
+  }]
 }
-
-Always output valid JSON only. Do not add any text before or after the JSON."""
+"""
 
 @app.route('/chat', methods=['POST'])
 def chat():
